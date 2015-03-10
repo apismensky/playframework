@@ -4,6 +4,7 @@
 package play.api.db
 
 import java.sql.{ Connection, Statement }
+import java.util.Properties
 import javax.sql.DataSource
 
 import play.api.{ Configuration, Environment, Logger, Mode, Play }
@@ -138,6 +139,25 @@ class BoneConnectionPool extends ConnectionPool {
     datasource.setQueryExecuteTimeLimitInMs(conf.getMilliseconds("queryExecuteTimeLimit").getOrElse(0))
     datasource.setResetConnectionOnClose(conf.getBoolean("resetConnectionOnClose").getOrElse(false))
     datasource.setDetectUnresolvedTransactions(conf.getBoolean("detectUnresolvedTransactions").getOrElse(false))
+
+    logger.info("Setting up SSL certs config parameters...")
+    val props = new Properties
+    conf.getString("trustStore") match {
+      case Some(trustStore) =>
+        props.setProperty("javax.net.ssl.trustStore", trustStore)
+        props.setProperty("javax.net.ssl.trustStoreType", conf.getString("trustStoreType").getOrElse("JKS"))
+        props.setProperty("javax.net.ssl.trustStorePassword", conf.getString("trustStorePassword").getOrElse("password"))
+      case _ =>
+    }
+    conf.getString("keyStore") match {
+      case Some(keyStore) =>
+        props.setProperty("javax.net.ssl.keyStore", keyStore)
+        props.setProperty("javax.net.ssl.keyStoreType", conf.getString("keyStoreType").getOrElse("JKS"))
+        props.setProperty("javax.net.ssl.keyStorePassword", conf.getString("keyStorePassword").getOrElse("password"))
+      case _ =>
+    }
+
+    if (props.size > 0) datasource.setDriverProperties(props)
 
     conf.getString("initSQL").map(datasource.setInitSQL)
     conf.getBoolean("logStatements").map(datasource.setLogStatementsEnabled)
